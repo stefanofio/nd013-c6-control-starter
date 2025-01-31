@@ -195,8 +195,33 @@ void set_obst(vector<double> x_points, vector<double> y_points, vector<State>& o
 	obst_flag = true;
 }
 
-int main ()
-{
+int main(int argc, char* argv[]){
+    
+  // Parse arguments
+	double kps = 1.0;
+  double kis = 0.0;
+  double kds = 0.0;
+  double kpt = 1.0;
+  double kit = 0.0;
+  double kdt = 0.0;
+  int la_idx = 0;
+
+  if (argc > 1) kps = std::atof(argv[1]);      
+	if (argc > 2) kis = std::atof(argv[2]);      
+	if (argc > 3) kds = std::atof(argv[3]);  
+   
+	if (argc > 4) kpt = std::atof(argv[4]);      
+	if (argc > 5) kit = std::atof(argv[5]);      
+	if (argc > 6) kdt = std::atof(argv[6]); 
+  
+  if (argc > 7) la_idx = std::atoi(argv[7]);      
+	
+   
+	cout << "Params set to " << endl;
+	cout << "Steer PID: " << kps <<  ", " << kis <<  ", "  << kds <<  ", "  << endl;
+	cout << "Throttle PID: " << kpt <<  ", " << kit <<  ", "  << kdt <<  ", "  << endl;
+  cout << "Steer Look Ahead: " << la_idx << endl;
+
   cout << "starting server" << endl;
   uWS::Hub h;
 
@@ -227,10 +252,10 @@ int main ()
 
   PID pid_steer = PID();
   PID pid_throttle = PID();
-  pid_steer.Init(1.0, 0.0, 0.04, 1.2, -1.2);
-  pid_throttle.Init(1.0, 0.0, 0.04, 1.0, -1.0);
+  pid_steer.Init(kps, kis, kds, 1.2, -1.2);
+  pid_throttle.Init(kpt, kit, kdt, 1.0, -1.0);
 
-  h.onMessage([&pid_steer, &pid_throttle, &new_delta_time, &timer, &prev_timer, &i, &prev_timer](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode)
+  h.onMessage([&pid_steer, &pid_throttle, &new_delta_time, &timer, &prev_timer, &i, &prev_timer, &la_idx](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode)
   {
         auto s = hasData(data);
 
@@ -290,8 +315,8 @@ int main ()
           /**
           * TODO (step 3): uncomment these lines
           **/
-//           // Update the delta time with the previous command
-//           pid_steer.UpdateDeltaTime(new_delta_time);
+          // Update the delta time with the previous command
+          pid_steer.UpdateDeltaTime(new_delta_time);
 
           // Compute steer error
           double error_steer;
@@ -302,23 +327,36 @@ int main ()
           /**
           * TODO (step 3): compute the steer error (error_steer) from the position and the desired trajectory
           **/
-//           error_steer = 0;
-
+          // Calculate cross-track error (CTE) as the perpendicular distance
+          // from the vehicle's current position to the desired trajectory
+          double min_dist = std::numeric_limits<double>::max();
+          int closest_idx = 0;
+          for (size_t j = 0; j < x_points.size(); j++) {
+              double dist = sqrt(pow(x_position - x_points[j], 2) + pow(y_position - y_points[j], 2));
+              if (dist < min_dist) {
+                  min_dist = dist;
+                  closest_idx = j;                  
+              }
+          }
+          int idx;
+          idx = closest_idx - la_idx; 
+          idx < 0 ? idx = 0 : idx = idx;
+          error_steer = atan2(y_points[idx] - y_position, x_points[idx] - x_position) - yaw;
           /**
           * TODO (step 3): uncomment these lines
           **/
-//           // Compute control to apply
-//           pid_steer.UpdateError(error_steer);
-//           steer_output = pid_steer.TotalError();
+          // Compute control to apply
+          pid_steer.UpdateError(error_steer);
+          steer_output = pid_steer.TotalError();
 
-//           // Save data
-//           file_steer.seekg(std::ios::beg);
-//           for(int j=0; j < i - 1; ++j) {
-//               file_steer.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-//           }
-//           file_steer  << i ;
-//           file_steer  << " " << error_steer;
-//           file_steer  << " " << steer_output << endl;
+          // Save data
+          file_steer.seekg(std::ios::beg);
+          for(int j=0; j < i - 1; ++j) {
+              file_steer.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+          }
+          file_steer  << i ;
+          file_steer  << " " << error_steer;
+          file_steer  << " " << steer_output << endl;
 
           ////////////////////////////////////////
           // Throttle control
@@ -336,7 +374,7 @@ int main ()
           * TODO (step 2): compute the throttle error (error_throttle) from the position and the desired speed
           **/
           // modify the following line for step 2
-          error_throttle = velocity - v_points.back(); // error is the last current speed -reference point speed
+          error_throttle = v_points.back() - velocity; // error is the last current speed -reference point speed
 
 
 

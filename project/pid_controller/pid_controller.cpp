@@ -35,12 +35,18 @@ void PID::UpdateError(double cte) {
         d_error = 0.0; // Avoid division by zero
     }
     p_error = cte;            // Proportional error
-    i_error += cte * delta_time; // Integral error
+    double i_error_temp = i_error + cte * delta_time;
+
+    // Anti-windup via clamping
+    double control = (Kp * p_error + Ki * i_error_temp + Kd * d_error);
+    if (control < output_lim_max && control > output_lim_min) {
+        i_error = i_error_temp; // Only update if not saturated
+    }
 }
 
 double PID::TotalError() {
     // Compute the control signal
-    double control = -(Kp * p_error + Ki * i_error + Kd * d_error);
+    double control = (Kp * p_error + Ki * i_error + Kd * d_error);
 
     // Clamp the control signal within output limits
     if (control > output_lim_max) {
