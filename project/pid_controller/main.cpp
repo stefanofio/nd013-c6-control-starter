@@ -196,14 +196,14 @@ void set_obst(vector<double> x_points, vector<double> y_points, vector<State>& o
 }
 
 int main(int argc, char* argv[]){
-    
+
   // Parse arguments
-	double kps = 1.0;
+	double kps = 0.22;
   double kis = 0.0;
-  double kds = 0.0;
-  double kpt = 1.0;
-  double kit = 0.0;
-  double kdt = 0.0;
+  double kds = 0.02;
+  double kpt = 0.1;
+  double kit = 0.0004;
+  double kdt = 0.02;
   int la_idx = 0;
 
   if (argc > 1) kps = std::atof(argv[1]);      
